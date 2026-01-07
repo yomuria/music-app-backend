@@ -2,7 +2,7 @@ meta:
   environment: node
   toolchain:
     name: npm
-    version: "18" # Или "20", если используешь свежие библиотеки
+    version: "22" # Или "20", если используешь свежие библиотеки
 build:
   skip: false
   artifacts:
