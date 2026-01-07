@@ -1,14 +1,26 @@
 const express = require('express');
 const cors = require('cors');
 const yts = require('yt-search');
-// Замени блок с spawn на этот:
-const ytDlp = require('yt-dlp-exec');
+const ytDlp = require('yt-dlp-exec'); // Убедись, что npm install yt-dlp-exec выполнен
+
+const app = express(); // 1. СНАЧАЛА СОЗДАЕМ APP
+app.use(cors());       // 2. ПОТОМ НАСТРАИВАЕМ CORS
+
+// 3. И ТОЛЬКО ПОТОМ ОПИСЫВАЕМ МАРШРУТЫ
+app.get('/api/search', async (req, res) => {
+    try {
+        const query = req.query.q;
+        const r = await yts(query);
+        res.json(r.videos.slice(0, 10));
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
 app.get('/api/play', (req, res) => {
     const videoUrl = req.query.url;
     res.setHeader('Content-Type', 'audio/mpeg');
 
-    // Это само скачает бинарник под нужную систему (Linux/Win) и запустит поток
     const stream = ytDlp.exec(videoUrl, {
         output: '-',
         format: 'bestaudio',
@@ -17,60 +29,6 @@ app.get('/api/play', (req, res) => {
 
     stream.stdout.pipe(res);
 });
-const path = require('path');
 
-const app = express();
-app.use(cors());
-
-// 1. Поиск остается прежним
-app.get('/api/search', async (req, res) => {
-    try {
-        const query = req.query.q;
-        const r = await yts(query);
-        const videos = r.videos.slice(0, 10);
-        res.json(videos.map(v => ({
-            id: v.videoId,
-            title: v.title,
-            artist: v.author.name,
-            cover: v.thumbnail,
-            url: v.url,
-            duration: v.timestamp
-        })));
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// 2. Новый метод проигрывания через yt-dlp
-app.get('/api/play', (req, res) => {
-    const videoUrl = req.query.url;
-    if (!videoUrl) return res.status(400).send('No URL provided');
-
-    res.setHeader('Content-Type', 'audio/mpeg');
-
-    // Запускаем yt-dlp.exe (убедись, что файл лежит в папке сервера)
-    const ytDlpPath = path.join(__dirname, 'yt-dlp.exe');
-    
-    const process = spawn(ytDlpPath, [
-        videoUrl,
-        '-f', 'bestaudio',      // Ищем лучшее аудио
-        '-o', '-',               // Выводим в поток (stdout)
-        '--quiet',               // Не выводить лишний мусор в лог
-        '--no-playlist'          // Только один трек
-    ]);
-
-    // Перенаправляем поток данных из yt-dlp прямо в браузер
-    process.stdout.pipe(res);
-
-    process.stderr.on('data', (data) => {
-        console.error(`yt-dlp error: ${data}`);
-    });
-
-    process.on('close', (code) => {
-        if (code !== 0) console.log(`yt-dlp process exited with code ${code}`);
-    });
-});
-
-// Вместо app.listen(3001)
-const PORT = process.env.PORT || 80; 
-app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+const PORT = process.env.PORT || 80;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
