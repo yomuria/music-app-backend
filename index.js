@@ -21,11 +21,14 @@ app.get('/api/play', (req, res) => {
     const videoUrl = req.query.url;
     res.setHeader('Content-Type', 'audio/mpeg');
 
-    const stream = ytDlp.exec(videoUrl, {
-        output: '-',
-        format: 'bestaudio',
-        quiet: true
-    }, { stdio: ['ignore', 'pipe', 'ignore'] });
+    // Внутри app.get('/api/play', ...)
+	const stream = ytDlp.exec(videoUrl, {
+		output: '-',
+		format: 'bestaudio[ext=m4a]/bestaudio/best', // m4a грузится быстрее
+		quiet: true,
+		noPlaylist: true,
+		limitRate: '1M'
+	}, { stdio: ['ignore', 'pipe', 'ignore'] });
 
     stream.stdout.pipe(res);
 });
